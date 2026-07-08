@@ -87,7 +87,7 @@ def set_cell_background(cell, color_hex):
         shading.set(qn('w:fill'), color_hex)
         cell._tc.get_or_add_tcPr().append(shading)
     except:
-        pass  # Silently fail if shading can't be applied
+        pass  
 
 def fetch_jobs_data():
     """Fetch jobs data from Synchroteam API"""
@@ -230,7 +230,7 @@ def download_report():
     # Set background color for header
     set_cell_background(header_table.rows[0].cells[0], '667eea')
     
-    doc.add_paragraph('')  # Spacing
+    doc.add_paragraph('')  
     
     # --- SUBTITLE ---
     p = doc.add_paragraph()
@@ -373,7 +373,6 @@ def download_report():
     doc.add_paragraph('')
     
     # --- FOOTER ---
-    # Add a separator line
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = p.add_run('-' * 60)
@@ -454,4 +453,4 @@ def logout():
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    app.run(debug=True, port=5000)
+    app.run(host='0.0.0.0', port=5000, debug=True)
