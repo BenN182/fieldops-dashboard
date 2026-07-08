@@ -1,0 +1,2108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Executive Dashboard | Jobs</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f0f4f8;
+            min-height: 100vh;
+        }
+
+        /* Navbar */
+        .navbar {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            padding: 20px 40px;
+            color: white;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+        }
+
+        .navbar .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 22px;
+            font-weight: 700;
+        }
+
+        .navbar .logo i {
+            font-size: 28px;
+        }
+
+        .navbar .user-section {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .navbar .user-section .user-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(255,255,255,0.15);
+            padding: 8px 16px;
+            border-radius: 30px;
+            font-size: 14px;
+        }
+
+        .navbar .user-section .user-name i {
+            font-size: 18px;
+        }
+
+        .navbar .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            padding: 8px 20px;
+            border-radius: 30px;
+            text-decoration: none;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .navbar .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        /* Main Container */
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Print Styles */
+        @media print {
+            .no-print {
+                display: none !important;
+            }
+            .navbar {
+                position: static !important;
+            }
+            .alert {
+                display: none !important;
+            }
+            .filter-bar {
+                display: none !important;
+            }
+            .refresh-btn, .download-btn {
+                display: none !important;
+            }
+            .chart-controls {
+                display: none !important;
+            }
+            .clear-btn {
+                display: none !important;
+            }
+            body {
+                background: white !important;
+            }
+            .container {
+                max-width: 100% !important;
+                margin: 0 !important;
+                padding: 20px !important;
+            }
+            #map {
+                height: 400px !important;
+                page-break-inside: avoid;
+            }
+            .chart-container {
+                height: 300px !important;
+            }
+            .table-container {
+                page-break-inside: avoid;
+            }
+            .chart-section {
+                page-break-inside: avoid;
+            }
+            .map-section {
+                page-break-inside: avoid;
+            }
+            .leaflet-control-container {
+                display: none !important;
+            }
+            .company-list {
+                page-break-inside: avoid;
+            }
+        }
+
+        /* Flash Messages */
+        .flash-messages {
+            margin-bottom: 30px;
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: 12px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            animation: slideDown 0.5s ease-out;
+        }
+
+        @keyframes slideDown {
+            from {
+                opacity: 0;
+                transform: translateY(-20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .alert-success {
+            background: #c6f6d5;
+            color: #276749;
+            border: 1px solid #9ae6b4;
+        }
+
+        .alert-error {
+            background: #fed7d7;
+            color: #c53030;
+            border: 1px solid #feb2b2;
+        }
+
+        .alert-info {
+            background: #bee3f8;
+            color: #2a69ac;
+            border: 1px solid #90cdf4;
+        }
+
+        .alert i {
+            font-size: 20px;
+        }
+
+        /* Dashboard Header */
+        .dashboard-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .dashboard-header .left-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-header h1 {
+            font-size: 28px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dashboard-header .sync-info {
+            background: white;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 13px;
+            color: #4a5568;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dashboard-header .sync-info i {
+            color: #48bb78;
+        }
+
+        .dashboard-header .sync-info .sync-time {
+            font-weight: 600;
+            color: #2d3748;
+        }
+
+        .dashboard-header .right-section {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-header .stats-badge {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .dashboard-header .stats-badge span {
+            background: white;
+            padding: 10px 20px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .dashboard-header .stats-badge span strong {
+            color: #667eea;
+            font-size: 18px;
+        }
+
+        .download-btn {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(72, 187, 120, 0.3);
+        }
+
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(72, 187, 120, 0.4);
+        }
+
+        .download-btn:active {
+            transform: translateY(0);
+        }
+
+        .download-btn i {
+            font-size: 16px;
+        }
+
+        .refresh-btn {
+            background: white;
+            border: 2px solid #e2e8f0;
+            padding: 10px 20px;
+            border-radius: 12px;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .refresh-btn:hover {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .refresh-btn:active {
+            transform: translateY(0);
+        }
+
+        .refresh-btn i {
+            font-size: 16px;
+        }
+
+        .refresh-btn.refreshing {
+            opacity: 0.7;
+            cursor: not-allowed;
+            pointer-events: none;
+        }
+
+        .refresh-btn.refreshing i {
+            animation: spin 1s linear infinite;
+        }
+
+        /* Search and Filter Bar */
+        .filter-bar {
+            background: white;
+            padding: 20px;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-bar .search-box {
+            flex: 1;
+            min-width: 250px;
+            position: relative;
+        }
+
+        .filter-bar .search-box i {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #a0aec0;
+        }
+
+        .filter-bar .search-box input {
+            width: 100%;
+            padding: 12px 15px 12px 45px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            background: #f7fafc;
+        }
+
+        .filter-bar .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .filter-bar select {
+            padding: 12px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 14px;
+            background: #f7fafc;
+            color: #2d3748;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            min-width: 150px;
+        }
+
+        .filter-bar select:focus {
+            outline: none;
+            border-color: #667eea;
+            background: white;
+        }
+
+        .filter-bar .clear-btn {
+            padding: 12px 24px;
+            background: #edf2f7;
+            border: none;
+            border-radius: 10px;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+        }
+
+        .filter-bar .clear-btn:hover {
+            background: #e2e8f0;
+        }
+
+        /* Table styles */
+        .table-container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            overflow: hidden;
+            overflow-x: auto;
+            margin-bottom: 30px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead {
+            background: #f7fafc;
+            border-bottom: 2px solid #e2e8f0;
+        }
+
+        thead th {
+            padding: 16px 20px;
+            text-align: left;
+            font-weight: 600;
+            color: #2d3748;
+            text-transform: uppercase;
+            font-size: 12px;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
+        }
+
+        thead th:hover {
+            background: #edf2f7;
+        }
+
+        thead th i {
+            margin-left: 5px;
+            font-size: 11px;
+            color: #a0aec0;
+        }
+
+        tbody tr {
+            border-bottom: 1px solid #edf2f7;
+            transition: background 0.2s;
+        }
+
+        tbody tr:hover {
+            background: #f7fafc;
+        }
+
+        tbody tr:last-child {
+            border-bottom: none;
+        }
+
+        tbody td {
+            padding: 14px 20px;
+            color: #2d3748;
+        }
+
+        /* Priority Badges */
+        .priority-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            display: inline-block;
+        }
+
+        .priority-badge.high {
+            background: #fed7d7;
+            color: #c53030;
+        }
+
+        .priority-badge.medium {
+            background: #feebc8;
+            color: #c05621;
+        }
+
+        .priority-badge.low {
+            background: #c6f6d5;
+            color: #276749;
+        }
+
+        .priority-badge.urgent {
+            background: #feb2b2;
+            color: #9b2c2c;
+        }
+
+        .priority-badge.default {
+            background: #e2e8f0;
+            color: #4a5568;
+        }
+
+        /* No Data */
+        .no-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+
+        .no-data i {
+            font-size: 60px;
+            margin-bottom: 20px;
+            display: block;
+        }
+
+        .no-data h3 {
+            color: #4a5568;
+            margin-bottom: 10px;
+        }
+
+        /* Chart Section */
+        .chart-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .chart-header h2 {
+            font-size: 20px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .chart-header h2 i {
+            color: #667eea;
+        }
+
+        .chart-controls {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .chart-controls button {
+            padding: 10px 20px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            background: white;
+            color: #4a5568;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chart-controls button:hover {
+            background: #f7fafc;
+            border-color: #667eea;
+        }
+
+        .chart-controls button.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+
+        .chart-controls button i {
+            font-size: 16px;
+        }
+
+        .chart-wrapper {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            align-items: center;
+        }
+
+        .chart-container {
+            position: relative;
+            height: 350px;
+            max-width: 400px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        .chart-legend-custom {
+            padding: 10px;
+        }
+
+        .chart-legend-custom h4 {
+            color: #2d3748;
+            margin-bottom: 15px;
+            font-size: 16px;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 12px;
+            margin-bottom: 8px;
+            border-radius: 8px;
+            transition: background 0.2s;
+            cursor: pointer;
+        }
+
+        .legend-item:hover {
+            background: #f7fafc;
+        }
+
+        .legend-color {
+            width: 16px;
+            height: 16px;
+            border-radius: 4px;
+            flex-shrink: 0;
+        }
+
+        .legend-label {
+            flex: 1;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .legend-count {
+            color: #718096;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .no-chart-data {
+            text-align: center;
+            padding: 60px 20px;
+            color: #a0aec0;
+        }
+
+        .no-chart-data i {
+            font-size: 50px;
+            margin-bottom: 15px;
+            display: block;
+        }
+
+        /* Map Section */
+        .map-section {
+            background: white;
+            border-radius: 16px;
+            padding: 30px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .map-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .map-header h2 {
+            font-size: 20px;
+            color: #2d3748;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .map-header h2 i {
+            color: #667eea;
+        }
+
+        .distance-stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .distance-stats span {
+            background: #f7fafc;
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-size: 14px;
+            color: #4a5568;
+        }
+
+        .distance-stats span strong {
+            color: #667eea;
+        }
+
+        #map {
+            height: 450px;
+            border-radius: 12px;
+            border: 1px solid #e2e8f0;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Company List */
+        .company-list {
+            margin-top: 20px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+            gap: 12px;
+        }
+
+        .company-item {
+            background: #f7fafc;
+            padding: 12px 16px;
+            border-radius: 10px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .company-item:hover {
+            background: #edf2f7;
+            border-color: #667eea;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+        }
+
+        .company-item.active {
+            background: #ebf4ff;
+            border-color: #667eea;
+        }
+
+        .company-item .company-name {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 14px;
+        }
+
+        .company-item .company-name i {
+            color: #667eea;
+            margin-right: 8px;
+        }
+
+        .company-item .company-details {
+            text-align: right;
+        }
+
+        .company-item .company-details .distance {
+            font-size: 12px;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        .company-item .company-details .job-count {
+            font-size: 11px;
+            color: #718096;
+        }
+
+        .company-item .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            background: #667eea;
+            color: white;
+        }
+
+        .company-item .badge.near {
+            background: #48bb78;
+        }
+
+        .company-item .badge.medium {
+            background: #ed8936;
+        }
+
+        .company-item .badge.far {
+            background: #f56565;
+        }
+
+        /* Map Popup Styles */
+        .custom-popup .leaflet-popup-content-wrapper {
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
+        .custom-popup .leaflet-popup-content {
+            padding: 12px 16px;
+            min-width: 200px;
+        }
+
+        .popup-title {
+            font-weight: 600;
+            color: #2d3748;
+            font-size: 16px;
+            margin-bottom: 5px;
+        }
+
+        .popup-detail {
+            color: #718096;
+            font-size: 13px;
+            margin: 3px 0;
+        }
+
+        .popup-detail i {
+            color: #667eea;
+            width: 18px;
+        }
+
+        .popup-distance {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e2e8f0;
+            font-weight: 600;
+            color: #667eea;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.8);
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .loading-overlay.active {
+            display: flex;
+        }
+
+        .loading-spinner {
+            text-align: center;
+        }
+
+        .loading-spinner i {
+            font-size: 50px;
+            color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+
+        .loading-spinner p {
+            margin-top: 15px;
+            color: #4a5568;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        /* Footer */
+        .footer {
+            margin-top: 40px;
+            text-align: center;
+            color: #a0aec0;
+            font-size: 14px;
+            padding: 20px 0;
+        }
+
+        /* Responsive */
+        @media (max-width: 1024px) {
+            .chart-wrapper {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+
+            .chart-container {
+                max-width: 100%;
+                height: 300px;
+            }
+
+            #map {
+                height: 350px;
+            }
+
+            .company-list {
+                grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            }
+        }
+
+        @media (max-width: 768px) {
+            .navbar {
+                padding: 15px 20px;
+                flex-wrap: wrap;
+                gap: 10px;
+            }
+
+            .navbar .logo {
+                font-size: 18px;
+            }
+
+            .navbar .user-section {
+                width: 100%;
+                justify-content: space-between;
+            }
+
+            .dashboard-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .dashboard-header .left-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .dashboard-header .right-section {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .dashboard-header .stats-badge {
+                justify-content: center;
+            }
+
+            .filter-bar {
+                flex-direction: column;
+            }
+
+            .filter-bar .search-box {
+                min-width: 100%;
+            }
+
+            .filter-bar select {
+                width: 100%;
+            }
+
+            .filter-bar .clear-btn {
+                width: 100%;
+            }
+
+            table {
+                font-size: 13px;
+            }
+
+            thead th, tbody td {
+                padding: 10px 12px;
+            }
+
+            .chart-header {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .chart-controls {
+                justify-content: center;
+            }
+
+            .chart-controls button {
+                flex: 1;
+                justify-content: center;
+                font-size: 13px;
+                padding: 8px 12px;
+            }
+
+            .chart-container {
+                height: 250px;
+            }
+
+            .map-header {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            #map {
+                height: 300px;
+            }
+
+            .company-list {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                padding: 0 10px;
+            }
+
+            .dashboard-header h1 {
+                font-size: 22px;
+            }
+
+            .chart-controls button {
+                font-size: 12px;
+                padding: 6px 10px;
+            }
+
+            #map {
+                height: 250px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar no-print">
+        <div class="logo">
+            <i class="fas fa-chart-line"></i>
+            <span>Executive Dashboard</span>
+        </div>
+        <div class="user-section">
+            <div class="user-name">
+                <i class="fas fa-user-circle"></i>
+                <span>{{ session.username if session.username else 'User' }}</span>
+            </div>
+            <a href="{{ url_for('logout') }}" class="logout-btn">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </a>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div class="container" id="dashboard-content">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="flash-messages no-print">
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}">
+                            {% if category == 'success' %}
+                                <i class="fas fa-check-circle"></i>
+                            {% elif category == 'error' %}
+                                <i class="fas fa-exclamation-circle"></i>
+                            {% else %}
+                                <i class="fas fa-info-circle"></i>
+                            {% endif %}
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <!-- Dashboard Header -->
+        <div class="dashboard-header">
+            <div class="left-section">
+                <h1>
+                    <i class="fas fa-tasks" style="color: #667eea;"></i> 
+                    Job Management
+                </h1>
+                <div class="sync-info">
+                    <i class="fas fa-clock"></i>
+                    Last Sync: <span class="sync-time" id="lastSyncTime">{{ last_sync if last_sync else 'Never' }}</span>
+                </div>
+            </div>
+            <div class="right-section no-print">
+                <div class="stats-badge">
+                    <span><strong id="totalCount">0</strong> Total Jobs</span>
+                    <span><strong id="visibleCount">0</strong> Visible</span>
+                </div>
+                <button class="download-btn" onclick="window.location.href='{{ url_for('download_report') }}'">
+                    <i class="fas fa-file-word"></i> Download Report (.docx)
+                </button>
+                <button class="refresh-btn" id="refreshBtn" onclick="refreshData()">
+                    <i class="fas fa-sync-alt"></i> Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Filter Bar -->
+        <div class="filter-bar no-print">
+            <div class="search-box">
+                <i class="fas fa-search"></i>
+                <input type="text" id="searchInput" placeholder="Search by Job #, Customer, or Technician...">
+            </div>
+            <select id="priorityFilter">
+                <option value="">All Priorities</option>
+                <option value="urgent">Urgent</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+            </select>
+            <button class="clear-btn" onclick="clearFilters()">
+                <i class="fas fa-times"></i> Clear Filters
+            </button>
+        </div>
+
+        <!-- Table -->
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th onclick="sortTable(0)">Job # <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(1)">Customer <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(2)">Job Status <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(3)">Job Type <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(4)">Description <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(5)">Priority <i class="fas fa-sort"></i></th>
+                        <th onclick="sortTable(6)">Technician <i class="fas fa-sort"></i></th>
+                    </tr>
+                </thead>
+                <tbody id="tableBody">
+                    {% if data and data.jobs and data.jobs|length > 0 %}
+                        {% for job in data.jobs %}
+                            <tr>
+                                <td><strong>{{ job.num }}</strong></td>
+                                <td>{{ job.customer }}</td>
+                                <td>{{ job.jobStatus }}</td>
+                                <td>{{ job.jobType }}</td>  
+                                <td>{{ job.description[:50] + '...' if job.description and job.description|length > 50 else job.description }}</td>
+                                <td>
+                                    <span class="priority-badge {{ job.priority.lower() if job.priority else 'default' }}">
+                                        {{ job.priority if job.priority else 'N/A' }}
+                                    </span>
+                                </td>
+                                <td>{{ job.technician if job.technician else 'Unassigned' }}</td>
+                            </tr>
+                        {% endfor %}
+                    {% else %}
+                        <tr>
+                            <td colspan="7">
+                                <div class="no-data">
+                                    <i class="fas fa-inbox"></i>
+                                    <h3>No Jobs Found</h3>
+                                    <p>No job data available at the moment.</p>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Chart Section -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <h2>
+                    <i class="fas fa-chart-pie"></i>
+                    Distribution Analysis
+                </h2>
+                <div class="chart-controls no-print">
+                    <button class="active" data-chart="customer" onclick="updateChart('customer')">
+                        <i class="fas fa-users"></i> By Customer
+                    </button>
+                    <button data-chart="status" onclick="updateChart('status')">
+                        <i class="fas fa-check-circle"></i> By Status
+                    </button>
+                    <button data-chart="technician" onclick="updateChart('technician')">
+                        <i class="fas fa-user-cog"></i> By Technician
+                    </button>
+                </div>
+            </div>
+            <div class="chart-wrapper">
+                <div class="chart-container">
+                    <canvas id="pieChart"></canvas>
+                </div>
+                <div class="chart-legend-custom" id="customLegend">
+                    <h4>Legend</h4>
+                    <div id="legendItems">
+                        <!-- Legend will be populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Map Section -->
+        <div class="map-section">
+            <div class="map-header">
+                <h2>
+                    <i class="fas fa-map-marked-alt"></i>
+                    Customer Locations
+                </h2>
+                <div class="distance-stats">
+                    <span><i class="fas fa-home"></i> Head Office</span>
+                    <span><i class="fas fa-route"></i> <strong id="avgDistance">0</strong> Avg Distance (km)</span>
+                    <span><i class="fas fa-location-dot"></i> <strong id="totalCustomers">0</strong> Locations</span>
+                </div>
+            </div>
+            <div id="map"></div>
+            
+            <!-- Company List -->
+            <div class="company-list" id="companyList">
+                <!-- Will be populated by JavaScript -->
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>&copy; 2026 Executive Dashboard &bull; Powered by Synchroteam &bull; All rights reserved</p>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner">
+            <i class="fas fa-spinner"></i>
+            <p>Generating PDF Report...</p>
+        </div>
+    </div>
+
+    <script>
+        // Store the original data
+        let jobsData = [];
+        let pieChart = null;
+        let currentChartType = 'customer';
+        let map = null;
+        let markers = [];
+        let customerLocationsData = {};
+
+        // Color palette for charts
+        const colors = [
+            '#667eea', '#764ba2', '#48bb78', '#ed8936', '#f56565',
+            '#4299e1', '#9f7aea', '#68d391', '#f6ad55', '#fc8181',
+            '#63b3ed', '#b794f4', '#81e6d9', '#fbb6ce', '#fbd38d',
+            '#9ae6b4', '#c4b5fd', '#fca5a5', '#93c5fd', '#d8b4fe'
+        ];
+
+        // Initialize data from Flask
+        document.addEventListener('DOMContentLoaded', function() {
+            {% if data and data.jobs %}
+                jobsData = {{ data.jobs|tojson }};
+                customerLocationsData = {{ customer_locations|tojson }};
+                updateStats();
+                initializeChart('customer');
+                initializeMap();
+                populateCompanyList();
+            {% endif %}
+            
+            // Auto-dismiss flash messages
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.opacity = '0';
+                    alert.style.transform = 'translateY(-20px)';
+                    alert.style.transition = 'all 0.5s ease';
+                    setTimeout(() => {
+                        alert.remove();
+                    }, 500);
+                }, 5000);
+            });
+
+            // Add event listeners for filtering
+            document.getElementById('searchInput').addEventListener('keyup', function() {
+                filterTable();
+                updateChart(currentChartType);
+            });
+            document.getElementById('priorityFilter').addEventListener('change', function() {
+                filterTable();
+                updateChart(currentChartType);
+            });
+        });
+
+        // Populate Company List
+        function populateCompanyList() {
+            const container = document.getElementById('companyList');
+            const headOffice = customerLocationsData['Head Office'];
+            
+            let html = '';
+            let companyCount = 0;
+            
+            Object.keys(customerLocationsData).forEach(name => {
+                if (name !== 'Head Office') {
+                    const loc = customerLocationsData[name];
+                    const distance = calculateDistance(
+                        headOffice.lat, headOffice.lng, 
+                        loc.lat, loc.lng
+                    );
+                    
+                    // Count jobs for this customer
+                    const customerJobs = jobsData.filter(job => job.customer === name);
+                    const jobCount = customerJobs.length;
+                    
+                    // Determine distance badge
+                    let badgeClass = 'near';
+                    let badgeText = '< 5 km';
+                    if (distance >= 5 && distance < 15) {
+                        badgeClass = 'medium';
+                        badgeText = '5-15 km';
+                    } else if (distance >= 15) {
+                        badgeClass = 'far';
+                        badgeText = '> 15 km';
+                    }
+                    
+                    html += `
+                        <div class="company-item" onclick="focusOnCompany('${name}')" data-company="${name}">
+                            <div class="company-name">
+                                <i class="fas fa-building"></i>
+                                ${name}
+                            </div>
+                            <div class="company-details">
+                                <div class="distance">${distance.toFixed(1)} km</div>
+                                <div class="job-count">${jobCount} job${jobCount !== 1 ? 's' : ''}</div>
+                                <span class="badge ${badgeClass}">${badgeText}</span>
+                            </div>
+                        </div>
+                    `;
+                    companyCount++;
+                }
+            });
+            
+            container.innerHTML = html;
+            
+            // Update customer count
+            document.getElementById('totalCustomers').textContent = companyCount;
+        }
+
+        // Focus on a specific company on the map
+        function focusOnCompany(companyName) {
+            const loc = customerLocationsData[companyName];
+            if (!loc) return;
+            
+            // Find the marker for this company
+            let targetMarker = null;
+            markers.forEach(marker => {
+                if (marker._popup && marker._popup._content && marker._popup._content.includes(companyName)) {
+                    targetMarker = marker;
+                }
+            });
+            
+            if (targetMarker) {
+                // Center map on the marker
+                map.setView([loc.lat, loc.lng], 15);
+                // Open the popup
+                targetMarker.openPopup();
+            } else {
+                // Fallback - just center on the location
+                map.setView([loc.lat, loc.lng], 15);
+            }
+            
+            // Highlight the company in the list
+            document.querySelectorAll('.company-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.dataset.company === companyName) {
+                    item.classList.add('active');
+                }
+            });
+        }
+
+        // Initialize Map
+        function initializeMap() {
+            const headOffice = customerLocationsData['Head Office'];
+            
+            // Create map
+            map = L.map('map').setView([headOffice.lat, headOffice.lng], 13);
+            
+            // Add tile layer
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors'
+            }).addTo(map);
+            
+            // Add Head Office marker
+            const headOfficeIcon = L.divIcon({
+                className: 'custom-div-icon',
+                html: '<div style="background-color: #667eea; width: 20px; height: 20px; border-radius: 50%; border: 3px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.3);"></div>',
+                iconSize: [20, 20],
+                iconAnchor: [10, 10]
+            });
+            
+            L.marker([headOffice.lat, headOffice.lng], { icon: headOfficeIcon })
+                .addTo(map)
+                .bindPopup(`
+                    <div class="popup-title">🏢 Head Office</div>
+                    <div class="popup-detail"><i class="fas fa-map-pin"></i> Central Location</div>
+                `);
+            
+            // Add customer markers
+            let totalDistance = 0;
+            let customerCount = 0;
+            
+            Object.keys(customerLocationsData).forEach(name => {
+                if (name !== 'Head Office') {
+                    const loc = customerLocationsData[name];
+                    const distance = calculateDistance(headOffice.lat, headOffice.lng, loc.lat, loc.lng);
+                    totalDistance += distance;
+                    customerCount++;
+                    
+                    // Get jobs for this customer
+                    const customerJobs = jobsData.filter(job => job.customer === name);
+                    
+                    // Create marker
+                    const customerIcon = L.divIcon({
+                        className: 'custom-div-icon',
+                        html: `<div style="background-color: #f56565; width: 16px; height: 16px; border-radius: 50%; border: 2px solid white; box-shadow: 0 2px 10px rgba(0,0,0,0.2);"></div>`,
+                        iconSize: [16, 16],
+                        iconAnchor: [8, 8]
+                    });
+                    
+                    const marker = L.marker([loc.lat, loc.lng], { icon: customerIcon })
+                        .addTo(map)
+                        .bindPopup(`
+                            <div class="popup-title">${name}</div>
+                            <div class="popup-detail"><i class="fas fa-briefcase"></i> ${customerJobs.length} Job(s)</div>
+                            <div class="popup-detail"><i class="fas fa-route"></i> ${distance.toFixed(2)} km from Head Office</div>
+                            ${customerJobs.length > 0 ? `
+                                <div class="popup-distance">
+                                    <i class="fas fa-tasks"></i> Latest Jobs:
+                                    ${customerJobs.slice(0, 3).map(job => job.num).join(', ')}
+                                    ${customerJobs.length > 3 ? '...' : ''}
+                                </div>
+                            ` : ''}
+                        `, { className: 'custom-popup' });
+                    
+                    markers.push(marker);
+                }
+            });
+            
+            // Update distance stats
+            const avgDistance = customerCount > 0 ? (totalDistance / customerCount) : 0;
+            document.getElementById('avgDistance').textContent = avgDistance.toFixed(1);
+            
+            // Fit map to show all markers
+            if (markers.length > 0) {
+                const group = L.featureGroup(markers);
+                map.fitBounds(group.getBounds().pad(0.1));
+            }
+        }
+
+        // Calculate distance using Haversine formula
+        function calculateDistance(lat1, lon1, lat2, lon2) {
+            const R = 6371; // Earth's radius in km
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = 
+                Math.sin(dLat/2) * Math.sin(dLat/2) +
+                Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * 
+                Math.sin(dLon/2) * Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // Initialize Chart
+        function initializeChart(type) {
+            const ctx = document.getElementById('pieChart').getContext('2d');
+            
+            const chartData = getChartData(type);
+            
+            pieChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: chartData.labels,
+                    datasets: [{
+                        data: chartData.values,
+                        backgroundColor: colors.slice(0, chartData.labels.length),
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((context.parsed / total) * 100).toFixed(1);
+                                    return `${context.label}: ${context.parsed} (${percentage}%)`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+            
+            updateLegend(chartData);
+        }
+
+        // Get chart data based on type
+        function getChartData(type) {
+            const filteredData = getFilteredData();
+            
+            if (filteredData.length === 0) {
+                return { labels: ['No Data'], values: [1] };
+            }
+
+            let groups = {};
+            
+            filteredData.forEach(job => {
+                let key = '';
+                if (type === 'customer') {
+                    key = job.customer || 'Unknown';
+                } else if (type === 'status') {
+                    key = job.jobStatus || 'Unknown';
+                } else if (type === 'technician') {
+                    key = job.technician || 'Unassigned';
+                }
+                
+                groups[key] = (groups[key] || 0) + 1;
+            });
+
+            // Sort by count descending
+            const sorted = Object.entries(groups).sort((a, b) => b[1] - a[1]);
+            
+            // Limit to top 10 items for readability
+            const topItems = sorted.slice(0, 10);
+            
+            const labels = topItems.map(item => item[0]);
+            const values = topItems.map(item => item[1]);
+
+            return { labels, values };
+        }
+
+        // Get filtered data from the table
+        function getFilteredData() {
+            const rows = document.querySelectorAll('#tableBody tr');
+            const filteredJobs = [];
+            
+            rows.forEach(row => {
+                if (row.style.display === 'none' || row.querySelector('.no-data')) {
+                    return;
+                }
+                
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 7) {
+                    const jobNum = cells[0].textContent.trim();
+                    const customer = cells[1].textContent.trim();
+                    const jobStatus = cells[2].textContent.trim();
+                    const jobType = cells[3].textContent.trim();
+                    const description = cells[4].textContent.trim();
+                    const priorityElement = cells[5].querySelector('.priority-badge') || cells[5];
+                    const priority = priorityElement.textContent.trim();
+                    const technician = cells[6].textContent.trim();
+                    
+                    if (jobNum && jobNum !== '') {
+                        filteredJobs.push({
+                            num: jobNum,
+                            customer: customer || 'N/A',
+                            jobStatus: jobStatus || 'N/A',
+                            jobType: jobType || 'N/A',
+                            description: description || 'N/A',
+                            priority: priority || 'N/A',
+                            technician: technician || 'Unassigned'
+                        });
+                    }
+                }
+            });
+            
+            return filteredJobs;
+        }
+
+        // Update chart
+        function updateChart(type) {
+            currentChartType = type;
+            
+            document.querySelectorAll('.chart-controls button').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.chart === type) {
+                    btn.classList.add('active');
+                }
+            });
+            
+            if (!pieChart) {
+                initializeChart(type);
+                return;
+            }
+            
+            const chartData = getChartData(type);
+            
+            pieChart.data.labels = chartData.labels;
+            pieChart.data.datasets[0].data = chartData.values;
+            pieChart.data.datasets[0].backgroundColor = colors.slice(0, chartData.labels.length);
+            pieChart.update();
+            
+            updateLegend(chartData);
+        }
+
+        // Update custom legend
+        function updateLegend(chartData) {
+            const legendContainer = document.getElementById('legendItems');
+            
+            if (chartData.labels.length === 0 || (chartData.labels.length === 1 && chartData.labels[0] === 'No Data')) {
+                legendContainer.innerHTML = `
+                    <div class="no-chart-data">
+                        <i class="fas fa-chart-pie"></i>
+                        <p>No data available for this view</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            const total = chartData.values.reduce((a, b) => a + b, 0);
+            
+            let html = '';
+            chartData.labels.forEach((label, index) => {
+                const count = chartData.values[index];
+                const percentage = ((count / total) * 100).toFixed(1);
+                html += `
+                    <div class="legend-item">
+                        <div class="legend-color" style="background-color: ${colors[index % colors.length]}"></div>
+                        <span class="legend-label">${label}</span>
+                        <span class="legend-count">${count} (${percentage}%)</span>
+                    </div>
+                `;
+            });
+            
+            legendContainer.innerHTML = html;
+        }
+
+        // PDF Generation - Fixed version
+        function generatePDF() {
+            document.getElementById('loadingOverlay').classList.add('active');
+            document.querySelector('#loadingOverlay .loading-spinner p').textContent = 'Generating PDF Report...';
+
+            // Get current date for filename
+            const now = new Date();
+            const dateStr = now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit' 
+            }).replace(/\//g, '-');
+            const timeStr = now.toLocaleTimeString('en-US', { 
+                hour: '2-digit', 
+                minute: '2-digit',
+                hour12: true 
+            });
+            const dateDisplay = now.toLocaleDateString('en-US', { 
+                year: 'numeric', 
+                month: '2-digit', 
+                day: '2-digit' 
+            });
+
+            // Get filtered data
+            const filteredData = getFilteredData();
+            
+            if (filteredData.length === 0) {
+                document.getElementById('loadingOverlay').classList.remove('active');
+                showFlashMessage('No data to export. Please check your filters.', 'error');
+                return;
+            }
+
+            // Get chart data for legend
+            const chartData = getChartData(currentChartType);
+            
+            // Build legend HTML for PDF
+            let legendHTML = '';
+            if (chartData.labels.length > 0 && chartData.labels[0] !== 'No Data') {
+                const total = chartData.values.reduce((a, b) => a + b, 0);
+                chartData.labels.forEach((label, index) => {
+                    const count = chartData.values[index];
+                    const percentage = ((count / total) * 100).toFixed(1);
+                    const color = colors[index % colors.length];
+                    legendHTML += `
+                        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 6px; padding: 4px 8px; border-radius: 4px; background: #f7fafc;">
+                            <div style="width: 16px; height: 16px; border-radius: 4px; background: ${color}; flex-shrink: 0;"></div>
+                            <span style="flex: 1; color: #2d3748; font-size: 13px;">${label}</span>
+                            <span style="color: #718096; font-size: 13px; font-weight: 600;">${count} (${percentage}%)</span>
+                        </div>
+                    `;
+                });
+            }
+
+            // Build table rows
+            let tableRows = '';
+            filteredData.forEach((job) => {
+                const priorityClass = job.priority.toLowerCase() || 'default';
+                let priorityColor = '#e2e8f0';
+                let priorityTextColor = '#4a5568';
+                
+                if (priorityClass === 'urgent') {
+                    priorityColor = '#feb2b2';
+                    priorityTextColor = '#9b2c2c';
+                } else if (priorityClass === 'high') {
+                    priorityColor = '#fed7d7';
+                    priorityTextColor = '#c53030';
+                } else if (priorityClass === 'medium') {
+                    priorityColor = '#feebc8';
+                    priorityTextColor = '#c05621';
+                } else if (priorityClass === 'low') {
+                    priorityColor = '#c6f6d5';
+                    priorityTextColor = '#276749';
+                }
+                
+                tableRows += `
+                    <tr>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">${job.num}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">${job.customer}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">${job.jobStatus}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">${job.jobType}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">${job.description.length > 25 ? job.description.substring(0, 25) + '...' : job.description}</td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">
+                            <span style="background: ${priorityColor}; padding: 2px 8px; border-radius: 10px; font-size: 10px; font-weight: 600; color: ${priorityTextColor};">${job.priority}</span>
+                        </td>
+                        <td style="padding: 6px 10px; border-bottom: 1px solid #e2e8f0; text-align: left; font-size: 11px;">${job.technician}</td>
+                    </tr>
+                `;
+            });
+
+            // Calculate stats
+            const completedCount = filteredData.filter(j => 
+                j.jobStatus.toLowerCase().includes('complete') || 
+                j.jobStatus.toLowerCase().includes('done')
+            ).length;
+            
+            const highPriorityCount = filteredData.filter(j => 
+                j.priority.toLowerCase() === 'high' || 
+                j.priority.toLowerCase() === 'urgent'
+            ).length;
+            
+            const uniqueCustomers = new Set(filteredData.map(j => j.customer));
+            const customerCount = uniqueCustomers.size;
+
+            // First, capture the chart as an image
+            const chartCanvas = document.getElementById('pieChart');
+            const chartImage = chartCanvas.toDataURL('image/png');
+
+            // Capture the map as an image with a timeout fallback
+            const mapElement = document.getElementById('map');
+            
+            // Use a promise with timeout for map capture
+            Promise.race([
+                new Promise((resolve) => {
+                    html2canvas(mapElement, {
+                        scale: 1.5,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        logging: false,
+                        width: mapElement.scrollWidth || 800,
+                        height: mapElement.scrollHeight || 400,
+                        onclone: function(clonedDoc) {
+                            // Ensure map tiles are loaded
+                            const mapEl = clonedDoc.getElementById('map');
+                            if (mapEl) {
+                                mapEl.style.visibility = 'visible';
+                            }
+                        }
+                    }).then(resolve).catch(() => resolve(null));
+                }),
+                new Promise((resolve) => setTimeout(() => resolve(null), 5000))
+            ]).then(function(mapCanvas) {
+                let mapImage = null;
+                if (mapCanvas) {
+                    mapImage = mapCanvas.toDataURL('image/png');
+                }
+                
+                // Build the PDF content
+                buildAndDownloadPDF(chartImage, mapImage, chartData, legendHTML, tableRows, filteredData, dateDisplay, timeStr, dateStr, completedCount, highPriorityCount, customerCount);
+            });
+        }
+
+        function buildAndDownloadPDF(chartImage, mapImage, chartData, legendHTML, tableRows, filteredData, dateDisplay, timeStr, dateStr, completedCount, highPriorityCount, customerCount) {
+            // Create the PDF content
+            const pdfContent = document.createElement('div');
+            pdfContent.style.cssText = 'font-family: "Segoe UI", Arial, sans-serif; padding: 30px; background: white; max-width: 1200px; margin: 0 auto;';
+            
+            // Build the content
+            let contentHTML = `
+                <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 20px 30px; border-radius: 10px; color: white; margin-bottom: 20px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap;">
+                        <div>
+                            <h1 style="font-size: 24px; margin: 0; font-weight: 700;">📊 Executive Dashboard Report</h1>
+                            <p style="margin: 5px 0 0 0; opacity: 0.9; font-size: 13px;">Job Management Report</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 12px; opacity: 0.9;">Generated: ${dateDisplay} at ${timeStr}</div>
+                            <div style="font-size: 12px; opacity: 0.9; font-weight: 600;">Total Jobs: ${filteredData.length}</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 20px;">
+                    <div style="background: #f7fafc; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #667eea;">${filteredData.length}</div>
+                        <div style="color: #718096; font-size: 12px;">Total Jobs</div>
+                    </div>
+                    <div style="background: #f7fafc; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #48bb78;">${completedCount}</div>
+                        <div style="color: #718096; font-size: 12px;">Completed</div>
+                    </div>
+                    <div style="background: #f7fafc; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #ed8936;">${highPriorityCount}</div>
+                        <div style="color: #718096; font-size: 12px;">High Priority</div>
+                    </div>
+                    <div style="background: #f7fafc; padding: 12px; border-radius: 8px; text-align: center;">
+                        <div style="font-size: 24px; font-weight: 700; color: #667eea;">${customerCount}</div>
+                        <div style="color: #718096; font-size: 12px;">Unique Customers</div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: #2d3748; font-size: 16px; margin-bottom: 12px;">📊 Distribution Analysis</h3>
+                    <div style="background: #f7fafc; padding: 20px; border-radius: 10px;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 30px; align-items: center; justify-content: center;">
+                            <div style="max-width: 400px; width: 100%;">
+                                <img src="${chartImage}" alt="Distribution Chart" style="max-width: 100%; height: auto; border-radius: 8px;">
+                            </div>
+                            <div style="min-width: 200px; flex: 1;">
+                                <h4 style="color: #2d3748; margin-bottom: 10px; font-size: 14px;">Legend</h4>
+                                ${legendHTML || '<p style="color: #718096;">No data available</p>'}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Add map if captured successfully
+            if (mapImage) {
+                contentHTML += `
+                    <div style="margin-bottom: 20px;">
+                        <h3 style="color: #2d3748; font-size: 16px; margin-bottom: 12px;">🗺️ Customer Locations</h3>
+                        <div style="background: #f7fafc; padding: 20px; border-radius: 10px; text-align: center;">
+                            <img src="${mapImage}" alt="Customer Locations Map" style="max-width: 100%; height: auto; border-radius: 8px;">
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Add table
+            contentHTML += `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: #2d3748; font-size: 16px; margin-bottom: 12px;">📋 Job Details</h3>
+                    <div style="background: white; border: 1px solid #e2e8f0; border-radius: 8px; overflow: hidden;">
+                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
+                            <thead>
+                                <tr style="background: #f7fafc; border-bottom: 2px solid #e2e8f0;">
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Job #</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Customer</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Status</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Type</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Description</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Priority</th>
+                                    <th style="padding: 8px 10px; text-align: left; font-weight: 600; color: #2d3748; text-transform: uppercase; font-size: 9px;">Technician</th>
+                                </tr>
+                            </thead>
+                            <tbody>${tableRows}</tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <div style="text-align: center; color: #a0aec0; font-size: 10px; border-top: 1px solid #e2e8f0; padding-top: 15px; margin-top: 10px;">
+                    <p>This report was generated automatically by the Executive Dashboard System.</p>
+                    <p>&copy; 2026 Executive Dashboard &bull; Powered by Synchroteam</p>
+                </div>
+            `;
+
+            pdfContent.innerHTML = contentHTML;
+
+            // PDF options - single page with proper sizing
+            const opt = {
+                margin: [10, 10, 10, 10],
+                filename: `Executive_Dashboard_Report_${dateStr}.pdf`,
+                image: { type: 'jpeg', quality: 0.95 },
+                html2canvas: { 
+                    scale: 1.5, 
+                    useCORS: true,
+                    logging: false,
+                    backgroundColor: '#ffffff',
+                    width: pdfContent.scrollWidth || 1000,
+                    height: pdfContent.scrollHeight || 1500
+                },
+                jsPDF: { 
+                    unit: 'mm', 
+                    format: 'a4', 
+                    orientation: 'portrait'
+                },
+                pagebreak: { 
+                    mode: ['avoid-all', 'css', 'legacy'] 
+                }
+            };
+
+            // Add to DOM, generate PDF, then remove
+            document.body.appendChild(pdfContent);
+            
+            // Wait a moment for content to render
+            setTimeout(function() {
+                html2pdf().set(opt).from(pdfContent).save()
+                    .then(function() {
+                        document.body.removeChild(pdfContent);
+                        document.getElementById('loadingOverlay').classList.remove('active');
+                        showFlashMessage('PDF Report downloaded successfully!', 'success');
+                    })
+                    .catch(function(error) {
+                        document.body.removeChild(pdfContent);
+                        console.error('PDF Generation Error:', error);
+                        document.getElementById('loadingOverlay').classList.remove('active');
+                        showFlashMessage('Error generating PDF: ' + error.message, 'error');
+                    });
+            }, 500);
+        }
+
+        // Refresh data function
+        function refreshData() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            
+            if (refreshBtn.classList.contains('refreshing')) {
+                return;
+            }
+            
+            refreshBtn.classList.add('refreshing');
+            refreshBtn.innerHTML = '<i class="fas fa-spinner"></i> Refreshing...';
+            document.getElementById('loadingOverlay').classList.add('active');
+            document.querySelector('#loadingOverlay .loading-spinner p').textContent = 'Refreshing data...';
+            
+            fetch('/api/refresh')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.getElementById('lastSyncTime').textContent = data.last_sync;
+                        document.getElementById('totalCount').textContent = data.total;
+                        showFlashMessage(data.message, 'success');
+                        setTimeout(() => {
+                            window.location.reload();
+                        }, 1000);
+                    } else {
+                        showFlashMessage(data.error, 'error');
+                        resetRefreshButton();
+                    }
+                })
+                .catch(error => {
+                    showFlashMessage('Error refreshing data: ' + error, 'error');
+                    resetRefreshButton();
+                })
+                .finally(() => {
+                    document.getElementById('loadingOverlay').classList.remove('active');
+                });
+        }
+
+        function resetRefreshButton() {
+            const refreshBtn = document.getElementById('refreshBtn');
+            refreshBtn.classList.remove('refreshing');
+            refreshBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Refresh';
+            document.getElementById('loadingOverlay').classList.remove('active');
+        }
+
+        function showFlashMessage(message, type = 'info') {
+            const container = document.querySelector('.flash-messages');
+            const alert = document.createElement('div');
+            alert.className = `alert alert-${type}`;
+            
+            let icon = 'fa-info-circle';
+            if (type === 'success') icon = 'fa-check-circle';
+            if (type === 'error') icon = 'fa-exclamation-circle';
+            
+            alert.innerHTML = `<i class="fas ${icon}"></i> ${message}`;
+            container.prepend(alert);
+            
+            setTimeout(() => {
+                alert.style.opacity = '0';
+                alert.style.transform = 'translateY(-20px)';
+                alert.style.transition = 'all 0.5s ease';
+                setTimeout(() => {
+                    alert.remove();
+                }, 500);
+            }, 5000);
+        }
+
+        // Filter table function
+        function filterTable() {
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            const priorityFilter = document.getElementById('priorityFilter').value.toLowerCase();
+            const rows = document.querySelectorAll('#tableBody tr');
+            
+            if (rows.length === 1 && rows[0].querySelector('.no-data')) {
+                return;
+            }
+            
+            let visibleCount = 0;
+            
+            rows.forEach(row => {
+                if (row.querySelector('.no-data')) {
+                    return;
+                }
+                
+                const cells = row.querySelectorAll('td');
+                if (cells.length < 7) return;
+                
+                const jobNum = cells[0].textContent.toLowerCase();
+                const customer = cells[1].textContent.toLowerCase();
+                const jobStatus = cells[2].textContent.toLowerCase();
+                const jobType = cells[3].textContent.toLowerCase();
+                const description = cells[4].textContent.toLowerCase();
+                const priority = cells[5].textContent.trim().toLowerCase();
+                const technician = cells[6].textContent.toLowerCase();
+                
+                const matchesSearch = jobNum.includes(searchTerm) || 
+                                    customer.includes(searchTerm) || 
+                                    jobStatus.includes(searchTerm) || 
+                                    jobType.includes(searchTerm) || 
+                                    description.includes(searchTerm) || 
+                                    technician.includes(searchTerm);
+                
+                const matchesPriority = !priorityFilter || priority === priorityFilter;
+                
+                if (matchesSearch && matchesPriority) {
+                    row.style.display = '';
+                    visibleCount++;
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+            
+            document.getElementById('visibleCount').textContent = visibleCount;
+        }
+
+        // Sort table function
+        function sortTable(columnIndex) {
+            const tbody = document.getElementById('tableBody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            
+            if (rows.length === 0 || (rows.length === 1 && rows[0].querySelector('.no-data'))) {
+                return;
+            }
+            
+            const isNumeric = columnIndex === 0;
+            
+            rows.sort((a, b) => {
+                const cellsA = a.querySelectorAll('td');
+                const cellsB = b.querySelectorAll('td');
+                
+                if (cellsA.length <= columnIndex || cellsB.length <= columnIndex) return 0;
+                
+                let valA = cellsA[columnIndex].textContent.trim();
+                let valB = cellsB[columnIndex].textContent.trim();
+                
+                if (isNumeric) {
+                    valA = parseInt(valA) || 0;
+                    valB = parseInt(valB) || 0;
+                    return valA - valB;
+                }
+                
+                return valA.localeCompare(valB);
+            });
+            
+            if (rows[0] === tbody.querySelector('tr')) {
+                rows.reverse();
+            }
+            
+            rows.forEach(row => tbody.appendChild(row));
+            
+            const headers = document.querySelectorAll('thead th');
+            headers.forEach((th, index) => {
+                const icon = th.querySelector('i');
+                if (icon) {
+                    icon.className = 'fas fa-sort';
+                }
+            });
+            
+            const currentHeader = headers[columnIndex];
+            const icon = currentHeader.querySelector('i');
+            if (icon) {
+                const firstRow = tbody.querySelector('tr');
+                if (firstRow && firstRow === rows[0]) {
+                    icon.className = 'fas fa-sort-up';
+                } else {
+                    icon.className = 'fas fa-sort-down';
+                }
+            }
+        }
+
+        // Clear filters
+        function clearFilters() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('priorityFilter').value = '';
+            filterTable();
+            updateChart(currentChartType);
+        }
+
+        // Update stats
+        function updateStats() {
+            const totalCount = document.getElementById('totalCount');
+            const visibleCount = document.getElementById('visibleCount');
+            
+            const rows = document.querySelectorAll('#tableBody tr');
+            let total = 0;
+            
+            rows.forEach(row => {
+                if (!row.querySelector('.no-data')) {
+                    total++;
+                }
+            });
+            
+            totalCount.textContent = total;
+            visibleCount.textContent = total;
+        }
+    </script>
+</body>
+</html>
